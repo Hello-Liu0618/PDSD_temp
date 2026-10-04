@@ -1,0 +1,60 @@
+{
+  "n": 60,
+  "n_total_requested": 60,
+  "model": "deepseek-chat",
+  "seed": 20261004,
+  "batch_size": 3,
+  "created": "2026-10-04 17:28:11",
+  "taxonomy": {
+    "algebra": [
+      "linear equations",
+      "systems of equations",
+      "quadratics",
+      "inequalities",
+      "sequences and recurrences",
+      "functions and graphs"
+    ],
+    "geometry": [
+      "triangles",
+      "circles",
+      "polygons",
+      "coordinate geometry",
+      "similarity and congruence",
+      "solid geometry"
+    ],
+    "combinatorics": [
+      "permutations and combinations",
+      "counting and inclusion-exclusion",
+      "pigeonhole principle",
+      "elementary graph theory",
+      "recursive counting"
+    ],
+    "probability": [
+      "classical probability",
+      "conditional probability and Bayes",
+      "expectation",
+      "geometric probability"
+    ],
+    "number theory": [
+      "divisibility and remainders",
+      "congruences",
+      "prime factorization",
+      "divisors and their sums",
+      "Diophantine equations"
+    ],
+    "logic and applications": [
+      "rate and work problems",
+      "ratio and mixture problems",
+      "logical deduction",
+      "sequential reasoning puzzles"
+    ]
+  },
+  "problem_types": [
+    "find a value",
+    "count the number of ways",
+    "find all possibilities",
+    "optimize a quantity",
+    "reason backwards from a target"
+  ],
+  "note": "生成时 DeepSeek 服务端采样不可完全复现；此 meta 记录批次与参数。"
+}

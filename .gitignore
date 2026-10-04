@@ -1,0 +1,35 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# ---- 训练/推理产物（体积大）----
+outputs/
+outputs_smoke/
+*.log
+*.pt
+*.safetensors
+checkpoint-*/
+translation_cache.json
+
+# ---- 生成的大件数据（保留小体积种子/冒烟数据）----
+data/generated_*.jsonl
+data/*.train.jsonl
+data/*.test.jsonl
+data/*.labeled*.jsonl
+data/*.reverified*.jsonl
+data/*.noanswer.jsonl
+
+# ---- Windows 垃圾文件 ----
+*:Zone.Identifier
+
+# ---- 会话导出 ----
+2026-*-this-session-*.txt
+
+# ---- 环境/编辑器 ----
+.venv/
+.env
+.vscode/
+.idea/
+.DS_Store

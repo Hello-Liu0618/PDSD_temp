@@ -1,0 +1,31 @@
+# PDSD 项目依赖（Python 3.10）
+# 安装： pip install -r requirements.txt
+# torch 建议单独先装（CUDA 版本按机器选）：
+#   pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu128
+
+# 深度学习
+torch==2.8.0
+torchvision==0.23.0
+transformers==4.57.1
+trl==0.26.0
+peft==0.17.1
+accelerate==1.11.0
+datasets==3.6.0
+huggingface_hub==0.36.2
+tokenizers==0.22.2
+safetensors==0.5.3
+sentencepiece==0.1.99
+numpy==2.2.6
+protobuf==6.33.6
+
+# 数据分析 / 可视化
+scipy==1.15.3
+pandas==2.3.3
+matplotlib==3.10.9
+
+# 数据生成 / 记录
+openai==3.8.0
+wandb==0.22.3
+
+# 可选：QLoRA 4-bit（仅当用 --load-in-4bit 时需要；本地未装）
+# bitsandbytes>=0.43

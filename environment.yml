@@ -1,0 +1,10 @@
+# conda 环境定义：conda env create -f environment.yml
+# 注意：torch 的 CUDA 版本按机器选；若默认装错，改用 setup_env.sh（会指定 cu128 索引）。
+name: rp-opsd
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - -r requirements.txt
