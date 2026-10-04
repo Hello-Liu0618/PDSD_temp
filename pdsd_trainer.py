@@ -67,6 +67,12 @@ class PDSDTrainer(RPOPSDTrainer):
             del hidden_states
             _empty_cache()
 
+            # 与 RP-OPSD 臂保持一致的 gate warmup（同 schedule，见父类 _gate_warmup_alpha）。
+            # 这是训练稳定性日程，不属于"枢轴寻找方式"，两臂必须相同。
+            alpha = self._gate_warmup_alpha()
+            if alpha < 1.0:
+                gate = ((1.0 - alpha) + alpha * gate) * completion_mask.to(gate.dtype)
+
             log_q_full = F.log_softmax(teacher_logits_for_loss, dim=-1).detach()
             q_full = log_q_full.exp()
             if self.use_ablation_forward:

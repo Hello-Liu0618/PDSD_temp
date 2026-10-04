@@ -80,6 +80,7 @@ def main() -> None:
               f"  {problem[:50]}")
 
     out_path = Path(args.out) if args.out else path.with_name(path.stem + ".labeled.jsonl")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         for r in out:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")

@@ -46,8 +46,8 @@ export DEEPSEEK_API_KEY=sk-xxx                # 数据生成用
 PY=python N_TOTAL=1000 EPOCHS=3 MAXCOMP=4096 ./run_pipeline.sh
 ```
 
-流程：**生成数据 → 分层划分 → 先训 RP-OPSD（取 ρ）→ 再训 PDSD（按 ρ 对齐）→ 测试集评测 base/pdsd/rpopsd**。
-数据已存在会自动跳过生成；各阶段可用 `SKIP_GEN=1 / SKIP_TRAIN=1 / SKIP_EVAL=1` 单独跳过。
+流程（5 段）：**生成数据 → 校验过滤+修复 → 分层划分 → 先训 RP-OPSD（取 ρ）→ 再训 PDSD（按 ρ 对齐）→ 测试集评测 base/pdsd/rpopsd**。
+数据已存在会自动跳过生成；各阶段可用 `SKIP_GEN=1 / SKIP_TRAIN=1 / SKIP_EVAL=1` 单独跳过；`REPAIR=0` 关闭对不一致条目的重解修复。
 
 ## 3. 显存选择（关键）
 
@@ -75,6 +75,8 @@ PY=python N_TOTAL=1000 EPOCHS=3 MAXCOMP=4096 ./run_pipeline.sh
 | 文件 | 作用 |
 |---|---|
 | `generate_data_deepseek.py` | 生成数学数据（题材格子 + 去重 + judge 校验） |
+| `filter_verified.py` | 按 judge 结果切 clean/flagged（正确性过滤，训练与测试都做） |
+| `repair_flagged.py` | 对 flagged 条目重解+重判，能救的并入 clean |
 | `make_split.py` | 按大类分层划 test/train |
 | `pdsd_collator.py` / `pdsd_gate.py` / `pdsd_trainer.py` / `train_pdsd.py` | 蒸馏（PDSD / RP-OPSD 双臂） |
 | `label_difficulty.py` | 难度标注 / 评测（`--adapter` 评训练后模型） |

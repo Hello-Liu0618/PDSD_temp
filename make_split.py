@@ -43,6 +43,13 @@ def main() -> None:
         test += items[:k]
         train += items[k:]
 
+    if not train:
+        raise SystemExit(
+            f"训练集为空：测试集把数据全拿走了（--n-test-per-class={args.n_test_per_class} 太大）。")
+    short = [c for c in sorted(by_cls) if len(by_cls[c]) <= args.n_test_per_class]
+    if short:
+        print(f"[警告] 这些大类条数 <= n_test_per_class，其训练部分为空：{short}")
+
     def dump(p: Path, recs) -> None:
         with open(p, "w", encoding="utf-8") as f:
             for r in recs:
