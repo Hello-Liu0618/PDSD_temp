@@ -43,7 +43,7 @@ TORCH_CUDA=cu121 bash setup_env.sh
 
 ```bash
 export DEEPSEEK_API_KEY=sk-xxx                # 数据生成用
-PY=python N_TOTAL=1000 EPOCHS=3 MAXCOMP=4096 ./run_pipeline.sh
+PY=python N_TOTAL=1000 EPOCHS=3 MAXCOMP=4096 bash run_pipeline.sh
 ```
 
 流程（5 段）：**生成数据 → 校验过滤+修复 → 分层划分 → 先训 RP-OPSD（取 ρ）→ 再训 PDSD（按 ρ 对齐）→ 测试集评测 base/pdsd/rpopsd**。
