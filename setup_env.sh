@@ -18,6 +18,7 @@ TORCH_CUDA=${TORCH_CUDA:-cu128}          # cu128 / cu121 / cu124 / cpu
 TORCH_VER=${TORCH_VER:-2.8.0}
 TV_VER=${TV_VER:-0.23.0}
 WITH_VLLM=${WITH_VLLM:-1}                # 1=装 vllm（生成提速一个数量级）
+VLLM_VER=${VLLM_VER:-0.11.2}             # 必须锁版本：TRL 0.26 只支持 0.10.2/0.11.0/0.11.1/0.11.2
 WITH_FLASH_ATTN=${WITH_FLASH_ATTN:-0}    # flash-attn 需编译，可能耗时很久；不装则自动用 sdpa
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
@@ -50,9 +51,22 @@ pip install --upgrade pip
 pip install -r "${HERE}/requirements.txt"
 
 if [ "$WITH_VLLM" = "1" ]; then
-  echo "[3b] 安装 vLLM（批量生成；若它与上面钉死的 torch 版本冲突，pip 会调整 torch，"
-  echo "     装完请核对下面的自检输出，必要时重装 torch）"
-  pip install vllm || echo "[警告] vllm 安装失败；训练时会自动回退到 HF generate（慢一个数量级）"
+  # 必须锁版本！TRL 0.26 只支持 vllm 0.10.2 / 0.11.0 / 0.11.1 / 0.11.2；
+  # 裸装 `pip install vllm` 会拉到最新版，导致 `import trl` 直接报
+  #   ModuleNotFoundError: No module named 'vllm.transformers_utils.tokenizer'
+  # 并把 torch 顶到大版本（实测 0.30.0 会把 torch 升到 2.13）。
+  echo "[3b] 安装 vLLM==${VLLM_VER}（TRL 支持的版本）"
+  pip install "vllm==${VLLM_VER}" \
+    || echo "[警告] vllm 安装失败；训练会回退 HF generate（慢一个数量级）"
+  # 注意：不要在这之后再 `pip install -r requirements.txt`——requirements 里钉的 torch==2.8.0
+  # 与 vllm 0.11.2 要求的 torch 2.9.0 冲突，会把 vllm 装坏。
+  echo "[3b] 校验版本组合（trl 能 import 才算通过）"
+  python -c "import trl, vllm, torch, transformers; print('OK', torch.__version__, vllm.__version__, trl.__version__, transformers.__version__)" \
+    || {
+      echo "[警告] 与 TRL 不兼容！回退建议："
+      echo "         pip uninstall -y vllm && pip install -r requirements.txt"
+      echo "         然后用 USE_VLLM=0 训练（慢，但可用）"
+    }
 fi
 
 if [ "$WITH_FLASH_ATTN" = "1" ]; then

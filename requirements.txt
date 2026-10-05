@@ -31,9 +31,13 @@ wandb==0.22.3
 # bitsandbytes>=0.43
 
 # 可选：vLLM（批量生成，把 rollout 提速一个数量级；强烈建议装）
-#   由 setup_env.sh 的 WITH_VLLM=1 自动安装，也可手动： pip install vllm
-#   注意：vllm 会钉住特定 torch 版本，装完请核对 torch/transformers/trl 是否仍匹配 requirements
-# vllm>=0.11
+#   ⚠️ 必须锁版本！TRL 0.26 只支持 vllm 0.10.2 / 0.11.0 / 0.11.1 / 0.11.2。
+#      裸装 `pip install vllm` 会拉到最新版（实测 0.30.0），后果：
+#        - `import trl` 直接报 ModuleNotFoundError: vllm.transformers_utils.tokenizer
+#        - 把 torch 从 2.8 顶到 2.13
+#   vllm 0.11.2 会把 torch 拉到 2.9.0（与上面的 torch==2.8.0 冲突）——装了 vllm 就**不要**
+#   再 `pip install -r requirements.txt`，否则会把 vllm 装坏。
+# vllm==0.11.2
 
 # 可选：flash-attn（长序列更快；需编译，耗时可能很久；不装则自动用 sdpa）
 # flash-attn
