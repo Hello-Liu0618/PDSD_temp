@@ -1,0 +1,62 @@
+Generating train split: 0 examples [00:00, ? examples/s]Generating train split: 836 examples [00:00, 77152.75 examples/s]
+Map:   0%|          | 0/836 [00:00<?, ? examples/s]Map: 100%|██████████| 836/836 [00:00<00:00, 13256.45 examples/s]
+`torch_dtype` is deprecated! Use `dtype` instead!
+数据: 836 条 | arm=rpopsd | rollout 上限=4096
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|█████     | 1/2 [01:16<01:16, 76.50s/it]Error while downloading from https://cas-bridge.xethub.hf.co/xet-bridge-us/680da7517bcb5198014ad394/17a41bb52c7f7ac39f0060f9d12213e0448696767d13dfddc10fc00f79a84a9d?Expires=1791155119&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYXMtYnJpZGdlLnhldGh1Yi5oZi5jby94ZXQtYnJpZGdlLXVzLzY4MGRhNzUxN2JjYjUxOTgwMTRhZDM5NC8xN2E0MWJiNTJjN2Y3YWMzOWYwMDYwZjlkMTIyMTNlMDQ0ODY5Njc2N2QxM2RmZGRjMTBmYzAwZjc5YTg0YTlkKiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5MTE1NTExOX19fV19&Signature=MEUCIHSOGBFmwfC6-ermAYxhEeXfjwNBW5gyVilbIwZa0T3vAiEAw9tQghPesivWpkvxmO9pt0NGUGe%7EbhLiOyIJwmx91R0_&Key-Pair-Id=K3EPXBYC3CKDRZ&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00001-of-00002.safetensors%3B+filename%3D%22model-00001-of-00002.safetensors%22%3B&xip=JCt-aubCbRg&X-Xet-Cas-Uid=62171e3b6a99db28e0b3159d&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=cas%2F20261004%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261004T220519Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=3a374d85597959625b81c1c88827e86e0f29edde0831306afe5d17d377eed09e: HTTPSConnectionPool(host='cas-bridge.xethub.hf.co', port=443): Read timed out.
+Trying to resume download...
+Fetching 2 files: 100%|██████████| 2/2 [07:10<00:00, 215.09s/it]Fetching 2 files: 100%|██████████| 2/2 [07:10<00:00, 215.09s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.29it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.56it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.23it/s]
+The model is already on multiple devices. Skipping the move to device specified in `args`.
+The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None, 'pad_token_id': 151643}.
+
+================================================================================
+RP-OPSD MAIN REFERENCE-ANCHOR OBJECTIVE
+Score: D_KL(q_plus || q_minus)
+Pivot term: gate * D_KL(q_full || p_student)
+Anchor term: lambda * (1 - gate) * D_KL(p_ref || p_student), lambda=0.2
+Reference: frozen base policy (LoRA adapters disabled)
+Loss temperature: 1.1
+Gate: beta=2.0, tau=0.0, g_min=0.05, ema_decay=0.99
+================================================================================
+
+RP-OPSD：PRS gate
+[gen] rollout 采样: max_new_tokens=4096 temperature=1.1 top_p=0.95 top_k=20 do_sample=True
+[gen] 评测协议须与之一致: temp=1.1 top_p=0.95 top_k=20 n_samples=3 max_new_tokens=4096
+  0%|          | 0/315 [00:00<?, ?it/s]
+================================================================================
+GENERATION DEBUG INFO:
+  Model dtype: torch.bfloat16
+  Model config use_cache: True
+  Attention implementation: sdpa
+  Generation config use_cache: True
+  Batch size: 1
+  Prompt length: 134
+  Max new tokens: 4096
+================================================================================
+
+generation done - elapsed time: 182.09s, prompts: 1, total tokens: 4096, avg length: 4096, speed: 22.5 tok/s
+Traceback (most recent call last):
+  File "/root/PDSD_temp/train_pdsd.py", line 204, in <module>
+    main()
+  File "/root/PDSD_temp/train_pdsd.py", line 198, in main
+    trainer.train()
+  File "/root/miniconda3/envs/rp-opsd/lib/python3.10/site-packages/transformers/trainer.py", line 2325, in train
+    return inner_training_loop(
+  File "/root/miniconda3/envs/rp-opsd/lib/python3.10/site-packages/transformers/trainer.py", line 2674, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+  File "/root/miniconda3/envs/rp-opsd/lib/python3.10/site-packages/trl/extras/profiling.py", line 98, in wrapper
+    return func(self, *args, **kwargs)
+  File "/root/PDSD_temp/RP-OPSD/RP-OPSD/src/rp_opsd_trainer.py", line 1651, in training_step
+    loss = super().training_step(model, inputs, num_items_in_batch)
+  File "/root/miniconda3/envs/rp-opsd/lib/python3.10/site-packages/trl/trainer/sft_trainer.py", line 1245, in training_step
+    return super().training_step(*args, **kwargs)
+  File "/root/miniconda3/envs/rp-opsd/lib/python3.10/site-packages/transformers/trainer.py", line 4020, in training_step
+    loss = self.compute_loss(model, inputs, num_items_in_batch=num_items_in_batch)
+  File "/root/PDSD_temp/RP-OPSD/RP-OPSD/src/rp_opsd_trainer.py", line 750, in compute_loss
+    kl_student_full = self._token_kl_with_teacher(student_logits, teacher_logits_for_loss)
+  File "/root/PDSD_temp/RP-OPSD/RP-OPSD/src/rp_opsd_trainer.py", line 679, in _token_kl_with_teacher
+    student_log_probs = F.log_softmax(student_logits, dim=-1)
+  File "/root/miniconda3/envs/rp-opsd/lib/python3.10/site-packages/torch/nn/functional.py", line 2245, in log_softmax
+    ret = input.log_softmax(dim)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.32 GiB. GPU 0 has a total capacity of 31.48 GiB of which 1.92 GiB is free. Including non-PyTorch memory, this process has 29.54 GiB memory in use. Of the allocated memory 29.01 GiB is allocated by PyTorch, and 236.32 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+  0%|          | 0/315 [03:03<?, ?it/s]
