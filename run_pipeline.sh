@@ -8,6 +8,8 @@
 #
 # 常用覆盖：
 #   DATA=...                数据路径（默认 data/generated_1000.jsonl）
+#   RUN_TAG=ctx4096         所有产物落到 outputs/<RUN_TAG>/ 下（多版本并行/归档用）
+#   OUTROOT=outputs         输出根目录（RUN_TAG 之下再分层）
 #   SKIP_PREP=1             跳过 [1-3]（生成/过滤/划分），直接用已有 clean_merged 数据
 #   SKIP_TRAIN=1            只跑数据与评测，不训练
 #   SKIP_EVAL=1             不跑训练后评测
@@ -37,6 +39,10 @@ LIMIT_ARGS=""
 LABEL_LIMIT=${LABEL_LIMIT:-0}   # 标注只用测试集前 N 条（0=全部）；快速自测用
 LABEL_LIMIT_ARGS=""
 [ "$LABEL_LIMIT" != "0" ] && LABEL_LIMIT_ARGS="--limit $LABEL_LIMIT"
+OUTROOT=${OUTROOT:-outputs}     # 输出根目录
+RUN_TAG=${RUN_TAG:-}            # 非空则所有产物落在 $OUTROOT/<RUN_TAG>/ 下（多版本并行/归档用）
+OUTDIR="$OUTROOT"
+[ -n "$RUN_TAG" ] && OUTDIR="$OUTROOT/$RUN_TAG"
 SKIP_PREP=${SKIP_PREP:-0}
 SKIP_GEN=${SKIP_GEN:-0}
 SKIP_TRAIN=${SKIP_TRAIN:-0}
@@ -81,12 +87,13 @@ TRAIN=${WORK%.jsonl}.train.jsonl
 TEST=${WORK%.jsonl}.test.jsonl
 [ -f "$TRAIN" ] || { echo "缺少 $TRAIN" >&2; exit 1; }
 [ -f "$TEST" ]  || { echo "缺少 $TEST"  >&2; exit 1; }
-mkdir -p outputs
+mkdir -p "$OUTDIR"
+echo ">>> 输出目录：$OUTDIR${RUN_TAG:+ (RUN_TAG=$RUN_TAG)}"
 
 # ---------- [4] base 基线标注（放在训练前：先知道数据难不难） ----------
 echo "=== [4/6] base 基线标注（测试集，同协议 n=3 temp=1.1 top_k=20）==="
 "$PY" label_difficulty.py --data "$TEST" --n-samples 3 --max-new-tokens "$MAXCOMP" \
-    --out outputs/eval_base.jsonl $LABEL_LIMIT_ARGS
+    --out "$OUTDIR/eval_base.jsonl" $LABEL_LIMIT_ARGS
 
 # ---------- [5] 双臂训练（先 RP-OPSD 取 ρ，再让 PDSD 对齐） ----------
 echo "=== [5/6] 双臂在线蒸馏 ==="
@@ -95,13 +102,13 @@ if [ "$SKIP_TRAIN" = "1" ]; then
 else
   echo "--- arm=rpopsd（决定监督预算 ρ）---"
   "$PY" train_pdsd.py --data "$TRAIN" --arm rpopsd \
-      --output-dir "outputs/rpopsd" --epochs "$EPOCHS" \
+      --output-dir "$OUTDIR/rpopsd" --epochs "$EPOCHS" \
       --max-completion-length "$MAXCOMP" $VLLM_ARGS $LIMIT_ARGS $EXTRA_TRAIN_ARGS \
-      2>&1 | tee outputs/rpopsd.log
+      2>&1 | tee "$OUTDIR/rpopsd.log"
 
   # 取 rp_gate_mean（= mean(gate)，即监督预算）**稳态段**均值作为 ρ：
   # 跳过 warmup+transition（默认各 5%），否则那段 gate≈1 会把 ρ 高估。
-  RHO=$(grep -o "rp_gate_mean': [0-9.]*" outputs/rpopsd.log \
+  RHO=$(grep -o "rp_gate_mean': [0-9.]*" "$OUTDIR/rpopsd.log" \
         | grep -o "[0-9.]*$" \
         | awk '{v[n++]=$1} END {if (n==0) exit; s=int(n*0.10); t=0; c=0; for(i=s;i<n;i++){t+=v[i];c++} if(c>0) printf "%.4f", t/c}' || true)
   RHO=${RHO:-$PIVOT_RHO}
@@ -109,9 +116,9 @@ else
 
   echo "--- arm=pdsd（--pivot-rho $RHO）---"
   "$PY" train_pdsd.py --data "$TRAIN" --arm pdsd \
-      --output-dir "outputs/pdsd" --epochs "$EPOCHS" \
+      --output-dir "$OUTDIR/pdsd" --epochs "$EPOCHS" \
       --max-completion-length "$MAXCOMP" --pivot-rho "$RHO" \
-      $VLLM_ARGS $LIMIT_ARGS $EXTRA_TRAIN_ARGS 2>&1 | tee outputs/pdsd.log
+      $VLLM_ARGS $LIMIT_ARGS $EXTRA_TRAIN_ARGS 2>&1 | tee "$OUTDIR/pdsd.log"
 fi
 
 # ---------- [6] 训练后评测 + 对比 ----------
@@ -120,12 +127,12 @@ if [ "$SKIP_EVAL" = "1" ] || [ "$SKIP_TRAIN" = "1" ]; then
   echo "[skip] SKIP_EVAL=1 或 SKIP_TRAIN=1"
 else
   for ARM in pdsd rpopsd; do
-    [ -d "outputs/$ARM" ] || { echo "[skip] outputs/$ARM 不存在"; continue; }
+    [ -d "$OUTDIR/$ARM" ] || { echo "[skip] $OUTDIR/$ARM 不存在"; continue; }
     "$PY" label_difficulty.py --data "$TEST" --n-samples 3 --max-new-tokens "$MAXCOMP" \
-        --adapter "outputs/$ARM" --out "outputs/eval_$ARM.jsonl" $LABEL_LIMIT_ARGS
+        --adapter "$OUTDIR/$ARM" --out "$OUTDIR/eval_$ARM.jsonl" $LABEL_LIMIT_ARGS
   done
   "$PY" summarize_eval.py \
-      base=outputs/eval_base.jsonl pdsd=outputs/eval_pdsd.jsonl rpopsd=outputs/eval_rpopsd.jsonl \
+      base="$OUTDIR/eval_base.jsonl" pdsd="$OUTDIR/eval_pdsd.jsonl" rpopsd="$OUTDIR/eval_rpopsd.jsonl" \
       || true
 fi
 

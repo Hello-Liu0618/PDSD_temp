@@ -62,6 +62,8 @@ PY=python N_TOTAL=1000 MAXCOMP=2048 bash run_pipeline.sh
 
 | 变量 | 作用 |
 |---|---|
+| `RUN_TAG=ctx4096` | **所有产物落到 `outputs/<RUN_TAG>/`**（多版本并行/归档；不设则用 `outputs/`） |
+| `OUTROOT=outputs` | 输出根目录（`RUN_TAG` 之下再分层） |
 | `SKIP_PREP=1` | 跳过 [1-3]（数据已备好，直接用 `clean_merged`） |
 | `SKIP_TRAIN=1` | 只做数据 + 基线标注 |
 | `SKIP_EVAL=1` | 不跑训练后评测 |

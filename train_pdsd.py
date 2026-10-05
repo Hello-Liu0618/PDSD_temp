@@ -92,8 +92,9 @@ def parse_args():
     p.add_argument("--no-gradient-checkpointing", action="store_true",
                    help="默认开启（与原版一致）；关掉更慢但省一次重算")
     p.add_argument("--use-vllm", action="store_true", help="vLLM colocate 批量生成（把生成提速一个数量级）")
-    p.add_argument("--vllm-gpu-memory-utilization", type=float, default=0.4,
-                   help="32GB 卡跑 2048 建议 0.4；显存紧就降到 0.25")
+    p.add_argument("--vllm-gpu-memory-utilization", type=float, default=0.3,
+                   help="vLLM 与训练共卡时的显存预留比例。原文用 0.4（卡更大）；"
+                        "32GB 卡务必 ≤0.3，否则 vLLM 预留过多、训练必 OOM。注意 vLLM 默认是 0.9！")
     p.add_argument("--load-in-4bit", action="store_true", help="QLoRA 4bit 底座（省 ~2.4GB）")
     p.add_argument("--attn-impl", default=None, choices=[None, "sdpa", "eager", "flash_attention_2"])
     p.add_argument("--report-to", default="none", help="none / wandb")
