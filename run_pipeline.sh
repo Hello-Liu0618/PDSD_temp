@@ -20,6 +20,9 @@ N_TEST_PER_CLASS=${N_TEST_PER_CLASS:-20}
 EXTRA_TRAIN_ARGS=${EXTRA_TRAIN_ARGS:-}
 PIVOT_RHO=${PIVOT_RHO:-0.45}   # 解析不到 RP-OPSD 实测 ρ 时的回退值
 REPAIR=${REPAIR:-1}            # 1=对被校验标为不一致的条目尝试重解修复后并入
+USE_VLLM=${USE_VLLM:-1}        # 1=vLLM 批量生成（把生成提速一个数量级）；未装 vllm 会自动回退
+VLLM_ARGS=""
+[ "$USE_VLLM" = "1" ] && VLLM_ARGS="--use-vllm"
 SKIP_GEN=${SKIP_GEN:-0}
 SKIP_TRAIN=${SKIP_TRAIN:-0}
 SKIP_EVAL=${SKIP_EVAL:-0}
@@ -66,7 +69,7 @@ else
   mkdir -p outputs
   "$PY" train_pdsd.py --data "$TRAIN" --arm rpopsd \
       --output-dir "outputs/rpopsd" --epochs "$EPOCHS" \
-      --max-completion-length "$MAXCOMP" $EXTRA_TRAIN_ARGS 2>&1 | tee outputs/rpopsd.log
+      --max-completion-length "$MAXCOMP" $VLLM_ARGS $EXTRA_TRAIN_ARGS 2>&1 | tee outputs/rpopsd.log
 
   # 取 rp_gate_mean（= mean(gate)，即监督预算）**稳态段**的均值作为 ρ：
   # 必须跳过 warmup+transition（默认各占 5%），否则那段 gate≈1 会把 ρ 高估。
@@ -79,7 +82,8 @@ else
   echo "--- arm=pdsd（--pivot-rho $RHO）---"
   "$PY" train_pdsd.py --data "$TRAIN" --arm pdsd \
       --output-dir "outputs/pdsd" --epochs "$EPOCHS" \
-      --max-completion-length "$MAXCOMP" --pivot-rho "$RHO" $EXTRA_TRAIN_ARGS 2>&1 | tee outputs/pdsd.log
+      --max-completion-length "$MAXCOMP" --pivot-rho "$RHO" \
+      $VLLM_ARGS $EXTRA_TRAIN_ARGS 2>&1 | tee outputs/pdsd.log
 fi
 
 echo "=== [5/5] 测试集评测（base / pdsd / rpopsd 同一协议）==="

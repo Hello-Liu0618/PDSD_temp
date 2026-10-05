@@ -67,9 +67,15 @@
 - `label_difficulty.py` —— 难度标注 / 评测（新增 `--adapter` 评训练后模型）
 - `run_pipeline.sh` —— 生成→划分→双臂训练→评测 一条龙
 
-**显存实测（8GB 卡）**：瓶颈在 `_token_kl_with_teacher` 物化的 `[1, G, 151936]` 张量——
-G=1024→2.2G、1536→3.3G、2048→4.4G、4096→~10G。加模型权重 3.4G 后：**G≤1024 安全，1536 很紧，2048+ 需 QLoRA（`--load-in-4bit`）**。
-分块计算 KL 几乎无用（autograd 仍存全量中间量）。
+**显存实测**：瓶颈是 `_token_kl_with_teacher` 里 `F.log_softmax` 对**完整词表**的输出（**float32**），
+`G × 151936 × 4` 字节 —— **G=4096 时每份 2.32 GiB**，一次要好几份（student/teacher 的 log-probs、kl_div 输出、反传保存量）。
+再加 4 次前向在长序列上的激活与模型权重 3.4G。
+
+- 8GB 本地实测：**G≤1024 安全，1536 很紧**；
+- **32GB 实测：G=4096 OOM**（需要 >32 GB）；估计 G=2048 ≈16–18 GB、G=3072 ≈23–25 GB。
+- 因此 **训练用 4096 需 48GB+**；`--load-in-4bit` 只省 ~2.4G（降一档），`--gradient-checkpointing` 省不了 KL 大头。
+- 分块计算 KL 几乎无用（autograd 仍存全量中间量）。
+- **难度标注不受此限**（只生成、无损失），4096 的标注 8GB 就能跑。
 
 **环境坑**：本机 deepspeed 已装但 import 即崩（缺 CUDA toolkit）；`accelerate.unwrap_model` 会探测并 import 它 → 在 `train_pdsd.py` 里把 `accelerate.utils.other.is_deepspeed_available` 置为 `False` 绕过。
 
@@ -94,7 +100,31 @@ G=1024→2.2G、1536→3.3G、2048→4.4G、4096→~10G。加模型权重 3.4G �
 
 > 注：底座 vs 当前策略不是"不一致"，而是在线蒸馏的定义；n=3（标注）vs n=1/次（训练）统计等价。
 
-### 9.2 监督预算对齐（方案 b，必须开启）
+### 9.2 训练超参与原版 RP-OPSD 对齐（默认值，勿轻易改）
+
+`train_pdsd.py` 的默认值取自原版 `RP-OPSD/scripts/train.sh`：
+
+| 参数 | 原版 | 说明 |
+|---|---|---|
+| `max_completion_length` | 2048 | 原文口径（**注意：不是 4096**） |
+| `learning_rate` | 5e-6 | **有效性参数**：偏高会发散，使两臂比较变成"谁更抗揍" |
+| `max_grad_norm` | 0.1 | KL 梯度天然尖峰，需紧裁剪 |
+| 有效 batch | 32（per_device 1 × grad_accum 32） | 梯度噪声 + gate 的 EMA 统计稳定性 |
+| `max_steps` | 100 | 训练总量（原文规模） |
+| `lmbda` / `beta` | 1 / 0 | GOLD 字段；主路径不读，仅为字面一致 |
+| `max_length` | 20000 | 我们的 prompt 仅 ~500 token，实质无影响 |
+| `gradient_checkpointing` | 开 | 默认开 |
+| 生成 | vLLM colocate（`mem_util=0.4`） | **决定"天 vs 小时"**；不接则 2048 也要 ~3 天 |
+| attention | flash_attention_2 | 未装 flash-attn 时自动退回 sdpa |
+
+**为什么必须对齐 lr / grad_norm**：它们是**有效性**参数——不对齐则训练会崩，那么无论跑多久，测到的都不是"枢轴方法"的差异。这一条比"跑不跑得动"更重要。
+
+**时间成本**（对齐后，含 vLLM）：100 步 × 32 = 3200 条 rollout ≈ **2–4 小时**（无 vLLM 则 ~80 小时）。
+估算不确定，**上线前先跑 5 步实测再外推**。
+
+**DeepSpeed**：原版用 `accelerate_zero2.yaml`（ZeRO-2，多卡）。我们单卡不需要；且 `train_pdsd.py` 为绕开崩溃的 deepspeed 已把 `is_deepspeed_available` 置 False，**不能直接用那个 config**。将来上多卡需重新处理。
+
+### 9.3 监督预算对齐（方案 b，必须开启）
 
 损失里 `ρ = mean(g)` 直接决定"从参考答案学多少"。PDSD 的 `spans` 若用阈值法，ρ 是**涌现**的（实测 ~0.45，且随序列长度漂移），会让"选得准"与"给得多"混淆。
 

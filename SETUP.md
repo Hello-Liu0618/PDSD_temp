@@ -43,24 +43,46 @@ TORCH_CUDA=cu121 bash setup_env.sh
 
 ```bash
 export DEEPSEEK_API_KEY=sk-xxx                # 数据生成用
-PY=python N_TOTAL=1000 EPOCHS=3 MAXCOMP=4096 bash run_pipeline.sh
+PY=python MAXCOMP=2048 bash run_pipeline.sh
 ```
 
 流程（5 段）：**生成数据 → 校验过滤+修复 → 分层划分 → 先训 RP-OPSD（取 ρ）→ 再训 PDSD（按 ρ 对齐）→ 测试集评测 base/pdsd/rpopsd**。
-数据已存在会自动跳过生成；各阶段可用 `SKIP_GEN=1 / SKIP_TRAIN=1 / SKIP_EVAL=1` 单独跳过；`REPAIR=0` 关闭对不一致条目的重解修复。
+数据已存在会自动跳过生成；各阶段可用 `SKIP_GEN=1 / SKIP_TRAIN=1 / SKIP_EVAL=1` 单独跳过；`REPAIR=0` 关闭修复；`USE_VLLM=0` 关闭 vLLM（**不推荐**，会慢一个数量级）。
 
-## 3. 显存选择（关键）
+### 训练超参：已默认对齐原版 RP-OPSD
 
-瓶颈是 KL 损失物化的 `[1, G, 151936]` 张量（G=完成长度）：
+`train_pdsd.py` 的默认值直接取自原版 `RP-OPSD/scripts/train.sh`：
 
-| G | 无量化 | +4bit(QLoRA) | 建议 |
-|---|---|---|---|
-| 1024 | ~6.2 GB | ~3.9 GB | 8GB 可用 |
-| 2048 | ~9.0 GB | ~6.7 GB | 12GB / 8GB+4bit |
-| 4096 | ~14.6 GB | ~12.3 GB | **24GB**（与已有难度标签口径一致） |
+| 参数 | 值 | 为何重要 |
+|---|---|---|
+| `max_completion_length` | **2048** | 原文口径；显存/时间都与之线性 |
+| `learning_rate` | **5e-6** | ⚠️ **有效性参数**：偏高会让训练发散，两臂比的就成了"谁更抗揍" |
+| `max_grad_norm` | **0.1** | ⚠️ KL 梯度天然尖峰，需紧裁剪 |
+| 有效 batch | **32** | 梯度噪声 + gate 的 EMA 统计稳定性 |
+| `max_steps` | **100** | 训练总量（原文规模） |
+| `lmbda` / `beta` | 1 / 0 | GOLD 字段，主路径不读，仅为字面一致 |
+| `gradient_checkpointing` | 开 | 默认开（`--no-gradient-checkpointing` 可关） |
+| 生成 | **vLLM colocate** | 决定"天 vs 小时" |
+| attention | 自动（有 flash-attn 用 FA2，否则 sdpa） | |
 
-- `--load-in-4bit` 需先 `pip install bitsandbytes`（默认未装）。
-- `--gradient-checkpointing` 只省模型激活，省不了 KL 大头。
+改这些默认值等于**偏离基线**，除非有明确理由并两臂同步改。
+
+## 3. 显存选择（关键，实测校正）
+
+瓶颈是 KL 损失里 `F.log_softmax` 对**完整词表**的输出，且会是 **float32**：
+`G × 151936 × 4` 字节 —— G=4096 时**每份 2.32 GiB**，而一次要好几份。
+
+| 完成长度 G | 估计峰值 | 建议卡 |
+|---|---|---|
+| 1024 | ~6–7 GB | 8GB ✅（本地实测可用） |
+| 2048 | ~16–18 GB | 24GB ✅ / 16GB 偏紧 |
+| 3072 | ~23–25 GB | 32GB（留余量） |
+| **4096** | **>32 GB**（**32GB 卡实测 OOM**） | **48GB+** |
+
+- `--load-in-4bit`（QLoRA）约省 2.4 GB 权重，只够降一档，需先 `pip install bitsandbytes`。
+- `--gradient-checkpointing` 只省模型激活（KL 大头省不掉），已实测与 `output_hidden_states` 兼容。
+- 可加 `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` 缓解碎片，但**不足以**让 4096 上 32GB。
+- **难度标注不受此限**（只做生成，无损失）——4096 的标注在 8GB 上都能跑；受限的只有**训练**。
 
 ## 4. 已知环境坑
 
