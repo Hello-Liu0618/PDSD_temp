@@ -25,7 +25,8 @@ from pathlib import Path
 
 # 必须在 import transformers 之前设置：huggingface_hub 在 import 时就读取这些变量
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
-os.environ.setdefault("HF_HUB_OFFLINE", "1")   # 模型已缓存，直接离线，避免无谓的网络重试
+# 默认联网（走镜像）。模型已缓存的本地机器可 `export HF_HUB_OFFLINE=1` 免去联网检查；
+# 云端首次运行**不要**设，否则无法下载模型。
 
 import torch
 

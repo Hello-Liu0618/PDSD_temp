@@ -19,13 +19,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from collections import Counter
 from pathlib import Path
 
-import torch
+# 必须在 import transformers（经 seed_builder）之前设置：huggingface_hub 在 import 时读取这些变量。
+# 否则会去连 huggingface.co 并反复重试（国内不可达，白等一分多钟）。
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+# 本地模型已缓存时可 `export HF_HUB_OFFLINE=1` 跳过联网检查；云端首次跑**不要**设（需要下载模型）。
 
-from seed_builder import load_model, build_student_prompt, generate, split_thinking
-from eval_smoke import pred_answer, match
+import torch  # noqa: E402
+
+from seed_builder import load_model, build_student_prompt, generate, split_thinking  # noqa: E402
+from eval_smoke import pred_answer, match  # noqa: E402
 
 
 def main() -> None:

@@ -41,13 +41,35 @@ TORCH_CUDA=cu121 bash setup_env.sh
 
 ## 2. 跑一条龙
 
+**数据已生成完毕 → 一键跑「基线标注 + 双臂训练 + 增量评测」**：
+
 ```bash
-export DEEPSEEK_API_KEY=sk-xxx                # 数据生成用
-PY=python MAXCOMP=2048 bash run_pipeline.sh
+PY=python SKIP_PREP=1 MAXCOMP=2048 bash run_pipeline.sh
 ```
 
-流程（5 段）：**生成数据 → 校验过滤+修复 → 分层划分 → 先训 RP-OPSD（取 ρ）→ 再训 PDSD（按 ρ 对齐）→ 测试集评测 base/pdsd/rpopsd**。
-数据已存在会自动跳过生成；各阶段可用 `SKIP_GEN=1 / SKIP_TRAIN=1 / SKIP_EVAL=1` 单独跳过；`REPAIR=0` 关闭修复；`USE_VLLM=0` 关闭 vLLM（**不推荐**，会慢一个数量级）。
+**从零开始（含数据生成）**：
+
+```bash
+export DEEPSEEK_API_KEY=sk-xxx
+PY=python N_TOTAL=1000 MAXCOMP=2048 bash run_pipeline.sh
+```
+
+流程（6 段）：**生成 → 校验过滤+修复 → 分层划分 → 〔base 基线标注〕→ 双臂训练（先 RP-OPSD 取 ρ，再 PDSD 按 ρ 对齐）→ 训练后评测对比**。
+
+**基线标注特意排在训练之前**——先花 ~1 小时（测试集 120 条）确认数据难度可用，再投入几小时训练。
+
+常用开关：
+
+| 变量 | 作用 |
+|---|---|
+| `SKIP_PREP=1` | 跳过 [1-3]（数据已备好，直接用 `clean_merged`） |
+| `SKIP_TRAIN=1` | 只做数据 + 基线标注 |
+| `SKIP_EVAL=1` | 不跑训练后评测 |
+| `LABEL_LIMIT=N` | 标注只用测试集前 N 条（快速自测） |
+| `LIMIT=N` | 只训练前 N 条（快速验证） |
+| `REPAIR=0` | 不做被标记条目的重解修复 |
+| `USE_VLLM=0` | 关 vLLM（**不推荐**，慢一个数量级） |
+| `EXTRA_TRAIN_ARGS="..."` | 追加传给 `train_pdsd.py` |
 
 ### 训练超参：已默认对齐原版 RP-OPSD
 
