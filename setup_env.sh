@@ -3,6 +3,7 @@
 #
 # 用法：
 #   bash setup_env.sh                        # 默认建 rp-opsd（含 vllm）
+#   USE_VENV=1 bash setup_env.sh             # conda 镜像不通时的救命选项：改用 python venv
 #   WITH_VLLM=0 bash setup_env.sh            # 不装 vllm（生成会慢一个数量级）
 #   WITH_FLASH_ATTN=1 bash setup_env.sh      # 额外装 flash-attn（编译很慢，默认不装）
 #   ENV_NAME=pdsd TORCH_CUDA=cu121 bash setup_env.sh
@@ -14,6 +15,8 @@ set -euo pipefail
 
 ENV_NAME=${ENV_NAME:-rp-opsd}
 PY_VER=${PY_VER:-3.10}
+USE_VENV=${USE_VENV:-0}                  # 1=用 python venv 代替 conda（conda 镜像不通时的救命选项）
+VENV_DIR=${VENV_DIR:-$HOME/venvs/$ENV_NAME}
 TORCH_CUDA=${TORCH_CUDA:-cu128}          # cu128 / cu121 / cu124 / cpu
 TORCH_VER=${TORCH_VER:-2.8.0}
 TV_VER=${TV_VER:-0.23.0}
@@ -22,20 +25,40 @@ VLLM_VER=${VLLM_VER:-0.11.2}             # 必须锁版本：TRL 0.26 只支持 
 WITH_FLASH_ATTN=${WITH_FLASH_ATTN:-0}    # flash-attn 需编译，可能耗时很久；不装则自动用 sdpa
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-if ! command -v conda >/dev/null 2>&1; then
-  echo "找不到 conda。请先装 miniconda：https://docs.conda.io/en/latest/miniconda.html" >&2
-  exit 1
-fi
-eval "$(conda shell.bash hook)"
-
-if conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
-  echo "[skip] 环境 $ENV_NAME 已存在，直接复用"
+if [ "$USE_VENV" = "1" ]; then
+  echo "[1/4] 使用 venv：$VENV_DIR"
+  if [ -d "$VENV_DIR" ]; then
+    echo "[skip] 已存在，直接复用"
+  else
+    python3 -m venv "$VENV_DIR" || {
+      echo "找不到可用的 python3。装一个： apt-get install -y python3 python3-venv" >&2; exit 1; }
+  fi
+  # shellcheck disable=SC1091
+  source "$VENV_DIR/bin/activate"
 else
-  echo "[1/4] 创建环境 $ENV_NAME (python $PY_VER)"
-  conda create -y -n "$ENV_NAME" "python=$PY_VER"
-fi
+  if ! command -v conda >/dev/null 2>&1; then
+    echo "找不到 conda。可改用： USE_VENV=1 bash setup_env.sh" >&2
+    exit 1
+  fi
+  eval "$(conda shell.bash hook)"
 
-conda activate "$ENV_NAME"
+  if conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
+    echo "[skip] 环境 $ENV_NAME 已存在，直接复用"
+  else
+    echo "[1/4] 创建环境 $ENV_NAME (python $PY_VER)"
+    conda create -y -n "$ENV_NAME" "python=$PY_VER" || {
+      echo ""
+      echo "conda 创建失败——国内常见原因是 defaults 频道连不上 repo.anaconda.com。"
+      echo "两个办法："
+      echo "  1) 把 conda 指向清华镜像后重试："
+      echo "     conda config --add default_channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main"
+      echo "     conda config --add default_channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r"
+      echo "     conda clean -i -y"
+      echo "  2) 不用 conda，改走 venv： USE_VENV=1 bash setup_env.sh"
+      exit 1; }
+  fi
+  conda activate "$ENV_NAME"
+fi
 
 echo "[2/4] 安装 torch（index: https://download.pytorch.org/whl/${TORCH_CUDA}）"
 if [ "$TORCH_CUDA" = "cpu" ]; then
