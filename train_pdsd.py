@@ -26,6 +26,8 @@ from pathlib import Path
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 os.environ.setdefault("TRL_EXPERIMENTAL_SILENCE", "1")
 # KL 损失会产生大量大块张量，碎片容易导致 OOM；此设置开销很小
+# torch 2.9 起改名，两个都设以兼容不同版本
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 # 有些机器 deepspeed 已安装但 import 即崩（无 CUDA toolkit → CUDA_HOME 缺失）。
@@ -92,6 +94,9 @@ def parse_args():
     p.add_argument("--no-gradient-checkpointing", action="store_true",
                    help="默认开启（与原版一致）；关掉更慢但省一次重算")
     p.add_argument("--use-vllm", action="store_true", help="vLLM colocate 批量生成（把生成提速一个数量级）")
+    p.add_argument("--steps-per-generation", type=int, default=1,
+                   help="每多少次梯度累积才做一次 vLLM 生成（>1 则一次批量生成多prompt，吞吐更高）。"
+                        "TRL 要求它是 gradient_accumulation_steps 的整数倍，例如 grad_accum=32 时填 32 或 64。")
     p.add_argument("--vllm-gpu-memory-utilization", type=float, default=0.3,
                    help="vLLM 与训练共卡时的显存预留比例。原文用 0.4（卡更大）；"
                         "32GB 卡务必 ≤0.3，否则 vLLM 预留过多、训练必 OOM。注意 vLLM 默认是 0.9！")
@@ -141,6 +146,7 @@ def build_config(a, grad_ckpt: bool, attn_impl: str) -> GOLDConfig:
         dataset_kwargs={"skip_prepare_dataset": True},
         bf16=True,
         use_vllm=a.use_vllm,
+        steps_per_generation=a.steps_per_generation,
         vllm_mode="colocate",
         vllm_gpu_memory_utilization=a.vllm_gpu_memory_utilization,
         vllm_tensor_parallel_size=1,

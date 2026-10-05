@@ -4,8 +4,10 @@
 #   pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu128
 
 # 深度学习
-torch==2.8.0
-torchvision==0.23.0
+# 注意：torch 2.9.0 / torchvision 0.24.0 是 vllm 0.11.2 强制要求的版本。
+# 若不用 vllm，2.8.0 也能跑；但为了与 vllm 共存，这里统一钉到 2.9.0。
+torch==2.9.0
+torchvision==0.24.0
 transformers==4.57.1
 trl==0.26.0
 peft==0.17.1
@@ -35,8 +37,7 @@ wandb==0.22.3
 #      裸装 `pip install vllm` 会拉到最新版（实测 0.30.0），后果：
 #        - `import trl` 直接报 ModuleNotFoundError: vllm.transformers_utils.tokenizer
 #        - 把 torch 从 2.8 顶到 2.13
-#   vllm 0.11.2 会把 torch 拉到 2.9.0（与上面的 torch==2.8.0 冲突）——装了 vllm 就**不要**
-#   再 `pip install -r requirements.txt`，否则会把 vllm 装坏。
+#   vllm 0.11.2 强制要求 torch==2.9.0 / torchvision==0.24.0 —— 上面的 pin 已与之对齐。
 # vllm==0.11.2
 
 # 可选：flash-attn（长序列更快；需编译，耗时可能很久；不装则自动用 sdpa）

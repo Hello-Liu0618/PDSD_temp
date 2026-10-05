@@ -18,8 +18,8 @@ PY_VER=${PY_VER:-3.10}
 USE_VENV=${USE_VENV:-0}                  # 1=用 python venv 代替 conda（conda 镜像不通时的救命选项）
 VENV_DIR=${VENV_DIR:-$HOME/venvs/$ENV_NAME}
 TORCH_CUDA=${TORCH_CUDA:-cu128}          # cu128 / cu121 / cu124 / cpu
-TORCH_VER=${TORCH_VER:-2.8.0}
-TV_VER=${TV_VER:-0.23.0}
+TORCH_VER=${TORCH_VER:-2.9.0}   # 与 vllm 0.11.2 的强制要求一致（否则 pip 会报依赖冲突）
+TV_VER=${TV_VER:-0.24.0}
 WITH_VLLM=${WITH_VLLM:-1}                # 1=装 vllm（生成提速一个数量级）
 VLLM_VER=${VLLM_VER:-0.11.2}             # 必须锁版本：TRL 0.26 只支持 0.10.2/0.11.0/0.11.1/0.11.2
 WITH_FLASH_ATTN=${WITH_FLASH_ATTN:-0}    # flash-attn 需编译，可能耗时很久；不装则自动用 sdpa
@@ -81,8 +81,7 @@ if [ "$WITH_VLLM" = "1" ]; then
   echo "[3b] 安装 vLLM==${VLLM_VER}（TRL 支持的版本）"
   pip install "vllm==${VLLM_VER}" \
     || echo "[警告] vllm 安装失败；训练会回退 HF generate（慢一个数量级）"
-  # 注意：不要在这之后再 `pip install -r requirements.txt`——requirements 里钉的 torch==2.8.0
-  # 与 vllm 0.11.2 要求的 torch 2.9.0 冲突，会把 vllm 装坏。
+  # requirements 里的 torch 已钉到 2.9.0（= vllm 0.11.2 的强制要求），二者一致，不会再冲突。
   echo "[3b] 校验版本组合（trl 能 import 才算通过）"
   python -c "import trl, vllm, torch, transformers; print('OK', torch.__version__, vllm.__version__, trl.__version__, transformers.__version__)" \
     || {
